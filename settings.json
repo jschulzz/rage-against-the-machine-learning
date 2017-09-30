@@ -1,9 +1,9 @@
 {
   "settings":{
-    "training_file" : "[alternative]tracks.txt",
+    "training_file" : "[alternative]tracks_small.txt",
     "null_char" : "|",
     "sequence_size" : 5,
-    "secret" : "0bb377fb9e4d41a8b16de6d58981b38d",
-    "id" : "a6790aedfc2c41b9ae4db5da0d0d95af"
+    "secret" : "YOUR SECRET",
+    "id" : "YOUR ID"
   }
 }

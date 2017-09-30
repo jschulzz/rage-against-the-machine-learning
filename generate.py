@@ -9,11 +9,11 @@ from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
 
 # load ascii text and covert to lowercase
-settings_file = open("settings.json").read()
+settings_file = open("My_settings.json").read()
 settings = json.loads(settings_file)["settings"]
 filename = settings["training_file"]
 null_char = settings["null_char"]
-weights_filename = "[alternative]tracks_weights-improvement-48-0.0531-bigger.hdf5"
+weights_filename = "[alternative]tracks_weights-improvement-49-0.0674-bigger.hdf5"
 
 
 artists = open(filename).read().lower().split("\n")
@@ -112,6 +112,7 @@ for i in range(2000):
 	prediction = model.predict(numpy.expand_dims(pattern, axis=0), verbose=0)
 	index = numpy.argmax(prediction)
 	result = int_to_char[index]
+	print(result)
 	if result != null_char:
 		seq_in = [int_to_char[value.index(1)] for value in pattern]
 		sys.stdout.write(result)
