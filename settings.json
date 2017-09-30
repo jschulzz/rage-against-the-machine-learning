@@ -1,9 +1,9 @@
 {
   "settings":{
-    "training_file" : "[alternative]tracks.txt",
+    "training_file" : "[alternative]tracks_small.txt",
     "null_char" : "|",
     "sequence_size" : 5,
-    "secret" : "YOUR API SECRET",
-    "id" : "YOUR API ID"
+    "secret" : "YOUR SECRET",
+    "id" : "YOUR ID"
   }
 }

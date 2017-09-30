@@ -1,8 +1,8 @@
-import sys
+import json
 import spotipy
 import spotipy.util as util
 
-settings_file = open("settings.json").read()
+settings_file = open("My_settings.json").read()
 settings = json.loads(settings_file)["settings"]
 id = settings["id"]
 secret = settings["secret"]

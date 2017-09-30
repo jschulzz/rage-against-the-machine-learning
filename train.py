@@ -11,7 +11,7 @@ from keras.utils import np_utils
 for file in os.listdir(os.curdir):
 	if file.startswith("weights-improvement"):
 		os.remove(file)
-settings_file = open("settings.json").read()
+settings_file = open("My_settings.json").read()
 settings = json.loads(settings_file)["settings"]
 filename = settings["training_file"]
 null_char = settings["null_char"]
