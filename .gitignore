@@ -1,1 +1,10 @@
 *.hdf5
+Theano/
+
+song_data\.json
+
+libgpuarray/
+
+My_settings\.json
+
+.idea/
