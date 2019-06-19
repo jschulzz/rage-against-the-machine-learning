@@ -1,159 +1,169 @@
 import os
+from sys import getsizeof
 import json
+import settings
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras import metrics, optimizers
 import numpy as np
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
-# from keras.utils import np_utils
 
-def toASCII(text):
-	result = []
-	result.append(1/len(text))
-	result.append(1/len(text.split()))
-	for letter in text:
-		result.append(ord(letter) / 256)
-	return result
+
+def encodeName(name, charDict):
+    result = []
+    # result.append(1/len(text))
+    # result.append(1/len(text.split()))
+    for letter in name:
+        encoding = [0 for char in charDict]  # 0s for all characters
+        encoding[charDict.index(letter)] = 1
+        result.append(encoding)
+    return result
+
+
+def createCharDict(all_names, null_char):
+    resulting_arr = []  # will look like ['a', 'b', 'c' ... ]
+    for name in all_names:
+        for letter in name:
+            if letter not in resulting_arr:
+                resulting_arr.append(letter)
+    if null_char not in resulting_arr:
+        resulting_arr.append(null_char)
+    resulting_arr.sort(key=ord)
+    return resulting_arr
+
+
+def encodeGenre(all_genres, matching_genres):
+    resulting_arr = [0 for g in all_genres]  # will look like ['a', 'b', 'c' ... ]
+    for genre in matching_genres:
+        resulting_arr[all_genres.index(genre)] = 1
+    return resulting_arr
 
 
 def mode(array):
-	most = max(list(map(array.count, array)))
-	return list(set(filter(lambda x: array.count(x) == most, array)))
+    most = max(list(map(array.count, array)))
+    return list(set(filter(lambda x: array.count(x) == most, array)))
 
-# load ascii text and covert to lowercase
-for file in os.listdir(os.curdir):
-	if file.startswith("weights-improvement"):
-		os.remove(file)
-settings_file = open("My_settings.json").read()
-settings = json.loads(settings_file)["settings"]
-filename = settings["training_file"]
-null_char = settings["null_char"]
 
-data = {}
-with open(filename) as file:
-	data = json.load(file)
+def clearOldNetworks():
+    for file in os.listdir(os.curdir):
+        if file.startswith("weights-improvement"):
+            os.remove(file)
 
-genre_list = []
-# for record in data:
-# 	genre_list += record["genres"]
-# genre_list.sort()
-artist_list = list(map(lambda x: x["artist_name"], data))
-final_dict = {}
 
-for entry in data:
-	# print(entry)
-	artist = entry["artist_name"]
-	genres = entry["genres"]
-	if len(genres) > 2:
-		genre_list += genres
-		try:
-			final_dict[artist] += genres
-		except KeyError:
-			final_dict[artist] = genres
-genre_list = list(set(genre_list))
-genre_list.sort()
-print(len(genre_list), "genres recorded")
-	# final_dict[artist] = list(set(final_dict[artist]))
-	# print(final_dict[artist])
-print("final_dict made")
-# print(final_dict)
-# for entry in final_dict:
-# 	print(entry)
-# artist_list = list(map(lambda x: x["track_name"], data))
-# artist_list = list(map(lambda x: x["album_name"], data))
-ASCII_list = list(map(lambda x: toASCII(x), final_dict.keys()))
-print("Total Data points:", len(ASCII_list))
-output_list = []
-for artist in final_dict:
-	# print(final_dict[artist])
-	output = [0] * len(genre_list)
-	output[genre_list.index(mode(final_dict[artist])[0])] = 1
-	output_list.append(output)
+def getData():
+    data_filename = settings.DATA_FILE
+    data = {}
+    with open(data_filename) as file:
+        data = json.load(file)
+    return data
+
+
+def flattenList(l):
+    flat_list = [item for sublist in l for item in sublist]
+    return flat_list
+
+def makeSenseOfData(data):
+
+    all_genres = list(set(flattenList(list(map(lambda x: x["genres"], data)))))
+    all_genres.sort()
+
+    all_artists = list(set(list(map(lambda x: x["artist_name"], data))))
+    # all_artists.sort(key=len)
+    # longest_name_len = len(all_artists[-1])
+    all_artists.sort()
+
+    return all_genres, all_artists
 
 
 
-# print(output_list)
+def transformData(data):
 
-max_size = len(max(artist_list, key=len))
-print("Made output map. Max Size: {}".format(max_size))
-for ascii in ASCII_list:
-	ascii += [0.0] * (max_size - len(ascii))
+    null_char = settings.NULL_CHAR
+    longest_name_len = settings.PADDING_LENGTH
+    all_genres, all_artists = makeSenseOfData(data)
 
-# print(ASCII_list)
+    charDict = createCharDict(all_artists, null_char)
 
-print("Data Organized. Building Model")
+    lookup_dict = {}
+
+    for entry in data:
+        artist = entry["artist_name"]
+        genres = entry["genres"]
+        if artist not in lookup_dict:
+            lookup_dict[artist] = genres
+
+    given_input = []
+    expected_output = []
+
+    print(len(all_genres), "genres recorded")
+    print(len(all_artists), "artists recorded")
+
+    for idx, artist in enumerate(all_artists):
+        if idx % 1000 is 0:
+            print("Artist #{}/{}".format(idx, len(all_artists)))
+            print("Sitting at {} and {}".format(getsizeof(given_input), getsizeof(expected_output)))
+        if idx > 4000:
+            break
+        padded_name = artist.ljust(longest_name_len, null_char)
+        encoded_name = flattenList(encodeName(padded_name, charDict))
+        matching_genres = lookup_dict[artist]
+        encoded_genres = encodeGenre(all_genres, matching_genres)
+        # print("{} - {}".format(artist, matching_genres))
+        # sorted_prediction = np.argsort(encoded_genres)
+        # for i in range(1, 4):
+        #     print(sorted_prediction)
+        #     print("Genre {}: {}".format(i, all_genres[sorted_prediction.tolist()[-i]]))
+        given_input.append(encoded_name)
+        expected_output.append(encoded_genres)
+
+    print("Total inputs:", len(given_input))
+    print("Total outputs:", len(expected_output))
+
+    return given_input, expected_output
 
 
-model = Sequential()
-model.add(Dropout(0.3))
-model.add(Dense(500, activation='relu', input_shape=(max_size,)))
-model.add(Dropout(0.6))
-model.add(Dense(1000, activation='relu'))
-model.add(Dropout(0.6))
-model.add(Dense(len(output_list[0]), activation='sigmoid'))
-model.compile(optimizer=optimizers.Adam(lr=0.05),
-			  loss='binary_crossentropy',
-			  metrics=['accuracy'])
+def createModel(name_length, output_length):
+    model = Sequential()
+    # model.add(Dropout(0.3))
+    model.add(Dense(500, activation="relu", input_shape=(name_length,)))
+    model.add(Dropout(0.6))
+    model.add(Dense(1000, activation="relu"))
+    model.add(Dropout(0.6))
+    model.add(Dense(output_length, activation="sigmoid"))
+    model.compile(
+        optimizer=optimizers.Adam(lr=0.05),
+        loss="binary_crossentropy",
+        metrics=["accuracy"],
+    )
+    return model
 
-filepath = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
-checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
-reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.8, patience=10, mode='auto', min_delta=0.001, cooldown=2, min_lr=0.00001)
-stopper = EarlyStopping(monitor='val_loss', min_delta=0.0005, patience=30, mode='auto')
-callbacks_list = [checkpoint, reduce, stopper]
-print("Fitting Now")
-model.fit(np.asarray(ASCII_list), np.asarray(output_list), epochs=10000, batch_size=3000, callbacks=callbacks_list, validation_split=0.2, shuffle=True)
-# print(artist_list)
-# artists = open(filename).read().lower().split("\n")
-# unique_chars = sorted(list(set(open(filename).read().lower().replace("\n", ""))))
-# unique_chars.append(null_char)
-#
-# # create mapping of unique chars to integers
-# max_length = (len(max(artists, key=len)))
-# char_to_int = dict((c, i) for i, c in enumerate(unique_chars))
-# # summarize the loaded data
-#
-# for i, artist in enumerate(artists):
-# 	while len(artist) < max_length:
-# 		artist += null_char
-# 	artists[i] = artist
-#
-# artists_matrix = []
-# n_chars = len(artists)
-# n_vocab = len(unique_chars)
-#
-# for artist in artists:
-# 	m = [[0 for x in range(n_vocab)] for y in range(max_length)]
-# 	for i in range(len(artist)):
-# 		m[i][char_to_int[artist[i]]] = 1
-# 	artists_matrix.append(m)
-#
-# print("Total Characters: ", n_chars)
-# print("Total Vocab: ", n_vocab)
-# # prepare the dataset of input to output pairs encoded as integers
-# sequence_size = settings["sequence_size"]
-# dataX = []
-# dataY = []
-# for artist in artists_matrix:
-# 	for i in range(0, len(artist) - sequence_size):
-# 		seq_in = artist[i:i+sequence_size]
-# 		seq_out = artist[i+sequence_size]
-# 		dataX.append(seq_in)
-# 		dataY.append(seq_out)
-# n_patterns = len(dataX)
-# print("Total Patterns: ", n_patterns)
-# # define the LSTM model
-# model = Sequential()
-# model.add(LSTM(256, input_shape=(sequence_size, len(unique_chars)), return_sequences=True))
-# model.add(Dropout(0.2))
-# model.add(LSTM(256))
-# model.add(Dropout(0.2))
-# model.add(Dense(len(dataY[1]), activation='softmax'))
-# model.compile(loss='categorical_crossentropy', optimizer='adam')
-# # define the checkpoint
-# filepath = "weights-improvement-{epoch:02d}-{loss:.4f}-bigger.hdf5"
-# checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
-# callbacks_list = [checkpoint]
-# # fit the model
-# print("About to fit")
-# model.fit(dataX, dataY, epochs=50, batch_size=64, callbacks=callbacks_list)
+
+if __name__ == "__main__":
+    clearOldNetworks()
+    data = getData()
+    given_input, expected_output = transformData(data)
+    print(len(given_input))
+    print(len(given_input[0]))
+    print(len(expected_output))
+    print(len(expected_output[0]))
+
+    model = createModel(len(given_input[0]), len(expected_output[0]))
+    filepath = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    checkpoint = ModelCheckpoint(
+        filepath, monitor="loss", verbose=1, save_best_only=True, mode="min"
+    )
+    stopper = EarlyStopping(
+        monitor="loss", min_delta=0.0005, patience=30, mode="auto"
+    )
+    callbacks_list = [checkpoint, stopper]
+    print("Fitting Now")
+    model.fit(
+        np.asarray(given_input),
+        np.asarray(expected_output),
+        epochs=100,
+        batch_size=64,
+        callbacks=callbacks_list,
+        validation_split=0.2,
+        shuffle=True,
+    )

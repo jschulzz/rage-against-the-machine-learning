@@ -8,3 +8,9 @@ libgpuarray/
 My_settings\.json
 
 .idea/
+
+\.vscode/
+/settings.py
+\.cache-john_schulz
+
+__pycache__/
